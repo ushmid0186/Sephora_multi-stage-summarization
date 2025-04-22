@@ -1,27 +1,13 @@
-import os
-import json
 import streamlit as st
-import pandas as pd
-from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone
 
-# -------------------------
-# 1. Streamlit page configuration (must be first)
-# -------------------------
-st.set_page_config(layout='wide')
+# ✅ получаем ключи из secrets
+OPENAI_API_KEY   = st.secrets["OPENAI_API_KEY"]
+PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
+INDEX_NAME       = st.secrets["INDEX_NAME"]
 
-# -------------------------
-# 2. Load environment variables
-# -------------------------
-load_dotenv()
-OPENAI_API_KEY   = st.secrets.get('OPENAI_API_KEY')
-PINECONE_API_KEY = st.secrets.get('PINECONE_API_KEY')
-INDEX_NAME       = st.secrets.get('PINECONE_INDEX')
-
-# -------------------------
-# 3. Initialize clients
-# -------------------------
+# ✅ инициализация
 client = OpenAI(api_key=OPENAI_API_KEY)
 pc     = Pinecone(api_key=PINECONE_API_KEY)
 index  = pc.Index(INDEX_NAME)
