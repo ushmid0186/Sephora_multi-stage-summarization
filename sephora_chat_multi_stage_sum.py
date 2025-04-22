@@ -46,7 +46,7 @@ if 'history' not in st.session_state:
 # -------------------------
 # 6. Query input form
 # -------------------------
-st.title("🧴 Sephora Review Chat with Clusters")
+st.title("🧴 Sephora Review Chat with Multi_Stage_Summary")
 with st.form(key='query_form'):
     query = st.text_area('', placeholder='Type your question...', height=70, label_visibility='collapsed')
     submitted = st.form_submit_button('🔍')
