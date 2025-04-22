@@ -40,46 +40,45 @@ with st.form(key='query_form'):
 
 
 if submitted and query:
-    with st.spinner("🔍 Ищу все релевантные отзывы..."):
-        # 1. Эмбеддинг вопроса
-        embedding = client.embeddings.create(
-            input=query,
-            model="text-embedding-3-small"
-        ).data[0].embedding
+    with st.spinner("Ищу все релевантные отзывы..."):
+        try:
+            embedding = client.embeddings.create(
+                input=query,
+                model="text-embedding-3-small"
+            ).data[0].embedding
 
-        # 2. Получаем общее количество векторов
-   #     stats = index.describe_index_stats()
-   #     top_k = min(stats["total_vector_count"], 10000)  # ограничим до 10 тыс
+            top_k = 1000  # или любое другое число, не превышающее лимит
 
-        # 3. Поиск по векторной базе
-        result = index.query(
-            vector=embedding,
-            top_k=1000,
-            include_metadata=True
-        )
+            result = index.query(
+                vector=embedding,
+                top_k=top_k,
+                include_metadata=True
+            )
 
-        # 4. Сбор метаданных из результатов
-        rows = []
-        for match in result["matches"]:
-            meta = match["metadata"]
-            rows.append({
-                "id": match["id"],
-                "score": match["score"],
-                "brand": meta.get("brand", ""),
-                "product_name": meta.get("product_name", ""),
-                "review_text": meta.get("review_text", meta.get("full_text", "")),
-                "rating": meta.get("rating", "")
-            })
+            rows = []
+            for match in result["matches"]:
+                meta = match.get("metadata", {})
+                rows.append({
+                    "id": match.get("id", ""),
+                    "score": match.get("score", ""),
+                    "brand": meta.get("brand", ""),
+                    "product_name": meta.get("product_name", ""),
+                    "review_text": meta.get("review_text", ""),
+                    "rating": meta.get("rating", "")
+                })
 
-        # 5. В DataFrame и временный CSV
-        df_results = pd.DataFrame(rows)
-        tmp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
-        df_results.to_csv(tmp_path, index=False)
+            if rows:
+                df_results = pd.DataFrame(rows)
+                tmp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
+                df_results.to_csv(tmp_path, index=False)
+                st.success("✅ Отзывы собраны.")
+                st.download_button("📥 Скачать отзывы", tmp_path, file_name="relevant_reviews.csv")
+                st.dataframe(df_results.head(10))
+            else:
+                st.warning("🙁 Не удалось найти релевантные отзывы.")
 
-        # 6. Вывод результата
-        st.success("✅ Отзывы собраны.")
-        st.download_button("📥 Скачать все релевантные отзывы", tmp_path, file_name="relevant_reviews.csv")
-        st.dataframe(df_results.head(10))
+        except Exception as e:
+            st.error(f"❌ Ошибка при поиске отзывов: {e}")
 
 
 # -------------------------
