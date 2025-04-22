@@ -1,6 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from pinecone import Pinecone
+import tempfile
 
 # ✅ получаем ключи из secrets
 OPENAI_API_KEY   = st.secrets["OPENAI_API_KEY"]
@@ -36,6 +37,50 @@ st.title("🧴 Sephora Review Chat with Multi_Stage_Summary")
 with st.form(key='query_form'):
     query = st.text_area('', placeholder='Type your question...', height=70, label_visibility='collapsed')
     submitted = st.form_submit_button('🔍')
+
+
+if submitted and query:
+    with st.spinner("🔍 Ищу все релевантные отзывы..."):
+        # 1. Эмбеддинг вопроса
+        embedding = client.embeddings.create(
+            input=query,
+            model="text-embedding-3-small"
+        ).data[0].embedding
+
+        # 2. Получаем общее количество векторов
+        stats = index.describe_index_stats()
+        top_k = stats.get("total_vector_count", 100000)  # fallback, если нет ключа
+
+        # 3. Поиск по векторной базе
+        result = index.query(
+            vector=embedding,
+            top_k=top_k,
+            include_metadata=True
+        )
+
+        # 4. Сбор метаданных из результатов
+        rows = []
+        for match in result["matches"]:
+            meta = match["metadata"]
+            rows.append({
+                "id": match["id"],
+                "score": match["score"],
+                "brand": meta.get("brand", ""),
+                "product_name": meta.get("product_name", ""),
+                "review_text": meta.get("review_text", meta.get("full_text", "")),
+                "rating": meta.get("rating", "")
+            })
+
+        # 5. В DataFrame и временный CSV
+        df_results = pd.DataFrame(rows)
+        tmp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
+        df_results.to_csv(tmp_path, index=False)
+
+        # 6. Вывод результата
+        st.success("✅ Отзывы собраны.")
+        st.download_button("📥 Скачать все релевантные отзывы", tmp_path, file_name="relevant_reviews.csv")
+        st.dataframe(df_results.head(10))
+
 
 # -------------------------
 # 8. Render chat history & reviews
