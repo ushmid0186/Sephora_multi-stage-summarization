@@ -2,6 +2,8 @@ import streamlit as st
 from openai import OpenAI
 from pinecone import Pinecone
 import tempfile
+import pandas as pd
+
 
 # ✅ получаем ключи из secrets
 OPENAI_API_KEY   = st.secrets["OPENAI_API_KEY"]
