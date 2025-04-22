@@ -1,7 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from pinecone import Pinecone
-import tempfile
+import io
 import pandas as pd
 
 
@@ -42,46 +42,54 @@ with st.form(key='query_form'):
 
 
 if submitted and query:
-    with st.spinner("Ищу все релевантные отзывы..."):
-        try:
+    try:
+        with st.spinner("🔎 Ищу все релевантные отзывы..."):
+            # 1. Создание эмбеддинга для запроса
             embedding = client.embeddings.create(
                 input=query,
                 model="text-embedding-3-small"
             ).data[0].embedding
 
-            top_k = 1000  # или любое другое число, не превышающее лимит
-
+            # 2. Запрос в Pinecone (берем максимум 1000 отзывов)
             result = index.query(
                 vector=embedding,
-                top_k=top_k,
+                top_k=1000,
                 include_metadata=True
             )
 
+            # 3. Сбор результатов
             rows = []
             for match in result["matches"]:
-                meta = match.get("metadata", {})
+                meta = match["metadata"]
                 rows.append({
-                    "id": match.get("id", ""),
-                    "score": match.get("score", ""),
+                    "id": match["id"],
+                    "score": match["score"],
                     "brand": meta.get("brand", ""),
                     "product_name": meta.get("product_name", ""),
                     "review_text": meta.get("review_text", ""),
                     "rating": meta.get("rating", "")
                 })
 
-            if rows:
-                df_results = pd.DataFrame(rows)
-                tmp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
-                df_results.to_csv(tmp_path, index=False)
-                st.success("✅ Отзывы собраны.")
-                st.download_button("📥 Скачать отзывы", tmp_path, file_name="relevant_reviews.csv")
-                st.dataframe(df_results.head(10))
-            else:
-                st.warning("🙁 Не удалось найти релевантные отзывы.")
+            df_results = pd.DataFrame(rows)
 
-        except Exception as e:
-            st.error(f"❌ Ошибка при поиске отзывов: {e}")
+            # 4. Превью в Streamlit
+            st.success(f"✅ Найдено {len(df_results)} релевантных отзывов")
+            st.dataframe(df_results.head(10))
 
+            # 5. Сохраняем в CSV и даем скачать
+            csv_buffer = io.StringIO()
+            df_results.to_csv(csv_buffer, index=False)
+            csv_data = csv_buffer.getvalue()
+
+            st.download_button(
+                label="📥 Скачать все отзывы (CSV)",
+                data=csv_data,
+                file_name="relevant_reviews.csv",
+                mime="text/csv"
+            )
+
+    except Exception as e:
+        st.error(f"❌ Ошибка при поиске отзывов: {e}")
 
 # -------------------------
 # 8. Render chat history & reviews
