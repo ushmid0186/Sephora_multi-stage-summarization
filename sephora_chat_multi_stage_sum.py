@@ -48,13 +48,13 @@ if submitted and query:
         ).data[0].embedding
 
         # 2. Получаем общее количество векторов
-        stats = index.describe_index_stats()
-        top_k = stats.get("total_vector_count", 100000)  # fallback, если нет ключа
+   #     stats = index.describe_index_stats()
+   #     top_k = min(stats["total_vector_count"], 10000)  # ограничим до 10 тыс
 
         # 3. Поиск по векторной базе
         result = index.query(
             vector=embedding,
-            top_k=top_k,
+            top_k=1000,
             include_metadata=True
         )
 
